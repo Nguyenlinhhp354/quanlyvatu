@@ -22,7 +22,7 @@ if ($_SESSION['loggedin'] == false) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thịnh Tiến MM</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=<?php echo time(); ?>">
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
@@ -31,9 +31,7 @@ if ($_SESSION['loggedin'] == false) {
 
         <div class="main-content">
             <main>
-                <h2>Trang chủ Quản lý vật tư Thịnh Tiến</h2>
-                <br>
-                <p>Nút ba gạch đã ở bên trái, My System nằm ở giữa và Admin nằm bên phải.</p>
+                
             </main>
             
             <?php include 'includes/footer.php'; ?>

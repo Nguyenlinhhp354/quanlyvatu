@@ -6,7 +6,7 @@
         Quản lý vật tư Thịnh Tiến
     </div>
     <div class="header-right">
-        Xin chào, Admin
+        Xin chào, <?php echo $ho_ten; ?>! <!-- Hiển thị tên người dùng lấy từ session -->
     </div>
 </header>
 
