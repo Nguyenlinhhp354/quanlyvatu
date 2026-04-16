@@ -8,20 +8,10 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit();
 }
 
-$id_nguoi_dung = $_SESSION['id_nguoi_dung']; 
-$sql_user = "SELECT ho_ten FROM nguoi_dung WHERE id_nguoi_dung='$id_nguoi_dung'";
-$result_user = mysqli_query($conn, $sql_user);
-
-if ($row_user = mysqli_fetch_assoc($result_user)) {
-    $ho_ten = $row_user['ho_ten'];
-} else {
-    $ho_ten = "Admin";
-}
-
 // Mảng danh mục với tên file viết liền không dấu
 $cacdanhmuc = [
     ["tieude" => "Chi tiết vật tư", "lienket" => "chitietvattu.php"],
-    ["tieude" => "Kho", "lienket" => "kho.php"],
+    ["tieude" => "Kho", "lienket" => "qldm_kho.php"],
     ["tieude" => "Chủng loại vật tư", "lienket" => "loaivattu.php"],
     ["tieude" => "Nhà cung cấp", "lienket" => "nhacungcap.php"],
     ["tieude" => "Thông số kỹ thuật", "lienket" => "thongsokythuat.php"],

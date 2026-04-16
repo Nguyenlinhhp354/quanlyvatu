@@ -8,17 +8,6 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit();
 }
 
-// --- ĐOẠN CODE BỔ SUNG: LẤY HỌ TÊN TỪ DATABASE ĐỂ TRUYỀN VÀO HEADER ---
-$id_nguoi_dung = $_SESSION['id_nguoi_dung']; 
-$sql = "SELECT * FROM nguoi_dung WHERE id_nguoi_dung='$id_nguoi_dung'";
-$result = mysqli_query($conn, $sql);
-
-if ($row = mysqli_fetch_assoc($result)) {
-    $ho_ten = $row['ho_ten']; // Lấy họ tên gán vào biến $ho_ten
-} else {
-    $ho_ten = "Admin"; // Fallback dự phòng nếu có lỗi
-}
-
 ?>
 <!DOCTYPE html>
 <html lang="vi">
