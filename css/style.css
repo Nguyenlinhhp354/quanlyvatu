@@ -1,4 +1,4 @@
-* {
+	* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -70,29 +70,53 @@ header {
     width: 250px;
     background-color: #212529;
     color: white;
-    transition: margin-left 0.3s ease;
+    
+    /* Hiệu ứng trượt quan trọng */
+    transition: margin-left 0.3s ease; 
+    
+    /* Flexbox để đẩy nội dung xuống dưới */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    
+    /* Chiều cao cố định theo màn hình */
+    height: calc(100vh - 60px); 
+    position: relative;
+    z-index: 99;
 }
 
+/* Lớp này dùng để ẩn sidebar khi click nút ☰ */
 .sidebar.an-di {
     margin-left: -250px;
 }
 
 .sidebar ul {
     list-style: none;
-    padding: 20px 0;
+    padding: 10px 0;
+}
+
+/* Đường kẻ phân cách phía trên các nút dưới cùng */
+.nav-bottom {
+    border-top: 1px solid #444;
+    margin-bottom: 10px;
 }
 
 .sidebar ul li a {
     color: white;
     text-decoration: none;
-    padding: 15px 20px;
+    padding: 12px 20px;
     display: block;
+    transition: 0.2s;
 }
 
 .sidebar ul li a:hover {
     background: #494e53;
 }
 
+/* Hiệu ứng riêng cho nút Đăng xuất */
+.nav-bottom li:last-child a:hover {
+    background: #dc3545;
+}
 
 /* NỘI DUNG CHÍNH */
 
@@ -127,4 +151,284 @@ footer {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+
+/* ====================
+   CSS CHO BẢNG DỮ LIỆU
+   ==================== */
+#table-container {
+    background-color: #ffffff; /* Nền trắng cho khu vực bảng */
+    padding: 20px;             /* Khoảng cách từ viền container vào bảng */
+    border-radius: 8px;        /* Bo góc khung chứa */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* Đổ bóng nhẹ cho nổi bật */
+    margin-top: 15px;
+    overflow-x: auto;          /* Cho phép cuộn ngang nếu màn hình quá nhỏ */
+}
+
+#table-container table {
+    width: 100%;               /* Bảng giãn đều 100% khung chứa */
+    border-collapse: collapse; /* Gộp các đường viền nét đôi thành nét đơn */
+}
+
+/* Định dạng viền và khoảng cách các ô */
+#table-container th, 
+#table-container td {
+    border: 1px solid #dee2e6; /* Màu viền xám nhạt */
+    padding: 12px 15px;        /* Tạo độ thoáng cho chữ bên trong ô */
+    text-align: left;
+}
+
+/* Định dạng riêng cho Tiêu đề bảng */
+#table-container thead th {
+    background-color: #343a40; /* Nền đen xám giống Header */
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Căn giữa cho cột ID và Hành động */
+#table-container th.text-center,
+#table-container td.text-center {
+    text-align: center;
+}
+
+/* Hiệu ứng màu nền xen kẽ (Zebra striping) */
+#table-container tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Hiệu ứng di chuột qua (Hover) */
+#table-container tbody tr:hover {
+    background-color: #e2e6ea;
+}
+
+/* Nút thao tác (Sửa/Xóa) */
+.btn-action {
+    padding: 5px 10px;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 0 2px;
+    display: inline-block;
+}
+.btn-edit { background-color: #28a745; }
+.btn-delete { background-color: #dc3545; }
+.btn-edit:hover { background-color: #218838; }
+.btn-delete:hover { background-color: #c82333; }
+
+/* ==================== 
+   THIẾT KẾ NÚT CHỨC NĂNG 
+   ==================== */
+.selection-function {
+    display: flex;
+    gap: 10px; /* Khoảng cách giữa các nút */
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.selection {
+    transition: all 0.3s ease;
+}
+
+.selection a {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #f8f9fa; /* Màu nền nhẹ */
+    color: #333;
+    text-decoration: none;
+    font-weight: 600;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+/* Hiệu ứng khi di chuột hoặc nút đang được chọn (Active) */
+.selection:hover a, .selection.active a {
+    background-color: #007bff; /* Màu xanh chủ đạo */
+    color: white;
+    border-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+/* ==================== 
+   THIẾT KẾ BẢNG DỮ LIỆU 
+   ==================== */
+#table-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+#table-container table {
+    width: 100%;
+    border-collapse: collapse; /* Gộp viền để tạo border sắc nét */
+    margin-top: 10px;
+    font-size: 15px;
+}
+
+/* Thêm border cho bảng */
+#table-container table, 
+#table-container th, 
+#table-container td {
+    border: 1px solid #e0e0e0; 
+}
+
+/* Định dạng tiêu đề bảng */
+#table-container thead th {
+    background-color: #343a40; /* Màu tối đồng bộ với Header */
+    color: white;
+    padding: 15px 10px;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+/* Định dạng các ô dữ liệu */
+#table-container tbody td {
+    padding: 12px 10px;
+    color: #444;
+}
+
+/* Hiệu ứng dòng khi di chuột qua */
+#table-container tbody tr:hover {
+    background-color: #f1f7ff;
+}
+
+/* Căn chỉnh nội dung trong bảng */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+
+/* Nút Hành động (Sửa/Xóa) */
+.btn-action {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: white;
+    margin: 0 2px;
+}
+.btn-edit { background-color: #28a745; }
+.btn-delete { background-color: #dc3545; }
+
+/* ==================== 
+   THIẾT KẾ MODAL BOX SỬA 
+   ==================== */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Nền đen mờ */
+    display: none; /* Mặc định ẩn đi */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-box {
+    background-color: white;
+    width: 400px;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-box h3 {
+    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.modal-box .form-group {
+    margin-bottom: 15px;
+}
+
+.modal-box .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.modal-box .form-group input, 
+.modal-box .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-cancel, .btn-save {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover { background-color: #5a6268; }
+
+.btn-save {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-save:hover { background-color: #0056b3; }
+
+/* ====================
+   GIAO DIỆN TRANG BÁO CÁO - THỐNG KÊ (GRID CARDS)
+   ==================== */
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+}
+
+/* Đã xóa vạch kẻ xanh trên đầu (border-top) */
+.report-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0; /* Viền xám mỏng đều 4 cạnh */
+    border-radius: 8px;
+    padding: 25px 20px;
+    text-decoration: none;
+    color: #333;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Đổ bóng rất nhẹ cho dễ nhìn */
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.2s ease; /* Chỉ giữ lại hiệu ứng đổi màu nền mượt mà */
+}
+
+.report-card h3 {
+    font-size: 17px;
+    color: #0056b3;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.report-card p {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Xóa hiệu ứng nổi lên (transform) và bóng đổ (box-shadow) */
+.report-card:hover {
+    background-color: #f8f9fa; /* Chỉ đổi màu nền xám rất nhẹ khi di chuột vào để nhận biết */
 }

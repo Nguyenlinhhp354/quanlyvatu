@@ -8,12 +8,10 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit();
 }
 
-// 1. LẤY THÔNG TIN NGƯỜI ĐĂNG NHẬP
 $id_nguoi_dung = $_SESSION['id_nguoi_dung']; 
 $sql_user = "SELECT ho_ten FROM nguoi_dung WHERE id_nguoi_dung='$id_nguoi_dung'";
 $ho_ten = ($row_user = mysqli_fetch_assoc(mysqli_query($conn, $sql_user))) ? $row_user['ho_ten'] : "Admin";
 
-// 2. XỬ LÝ BIẾN TÌM KIẾM, LỌC VÀ SẮP XẾP TỪ URL (GET)
 $search_query = isset($_GET['search']) ? mysqli_real_escape_string($conn, trim($_GET['search'])) : "";
 $filter_kho = isset($_GET['kho']) ? mysqli_real_escape_string($conn, $_GET['kho']) : "";
 
@@ -21,49 +19,40 @@ $sort_col = isset($_GET['sort']) ? $_GET['sort'] : 'vt.id_vat_tu';
 $sort_dir = isset($_GET['dir']) && $_GET['dir'] == 'asc' ? 'ASC' : 'DESC';
 $next_dir = ($sort_dir == 'ASC') ? 'desc' : 'asc';
 
-// Mảng chứa các cột được phép sắp xếp (để chống SQL Injection)
-$allowed_sort_cols = ['vt.ma_vat_tu', 'vt.ten_vat_tu', 'k.ten_kho', 'lvt.ten_loai_vat_tu', 'hsx.ten_hang_san_xuat', 'ton_kho'];
+$allowed_sort_cols = ['vt.ma_vat_tu', 'vt.ten_vat_tu', 'ten_kho', 'lvt.ten_loai_vat_tu', 'hsx.ten_hang_san_xuat', 'vt.don_gia', 'ton_kho'];
 if (!in_array($sort_col, $allowed_sort_cols)) { $sort_col = 'vt.id_vat_tu'; }
 
-// 3. XÂY DỰNG CÂU LỆNH SQL ĐỘNG DỰA VÀO BỘ LỌC
-$where_conditions = ["1=1"]; // Điều kiện mặc định luôn đúng
+$where_conditions = ["1=1"];
 
 if ($search_query != "") {
     $where_conditions[] = "(vt.ma_vat_tu LIKE '%$search_query%' OR vt.ten_vat_tu LIKE '%$search_query%')";
 }
 if ($filter_kho != "") {
-    $where_conditions[] = "vt.id_kho = '$filter_kho'";
+    $where_conditions[] = "(tk.id_kho = '$filter_kho')";
 }
 $where_sql = implode(" AND ", $where_conditions);
 
-// Câu truy vấn tính Tồn Kho và kết nối các bảng danh mục
+// =========================================================================
+// SỬ DỤNG INNER JOIN VÀ LẤY THÊM don_gia TỪ BẢNG vat_tu
+// =========================================================================
 $sql_main = "SELECT 
-                vt.id_vat_tu, vt.ma_vat_tu, vt.ten_vat_tu, 
-                k.ten_kho, 
+                vt.id_vat_tu, vt.ma_vat_tu, vt.ten_vat_tu, vt.don_gia,
+                k_tk.ten_kho, 
                 lvt.ten_loai_vat_tu, 
                 hsx.ten_hang_san_xuat, 
                 dvt.ten_don_vi_tinh,
-                (IFNULL(nhap.tong_nhap, 0) - IFNULL(xuat.tong_xuat, 0)) AS ton_kho
+                tk.so_luong_ton AS ton_kho
             FROM vat_tu vt
-            LEFT JOIN kho k ON vt.id_kho = k.id_kho
+            INNER JOIN ton_kho tk ON vt.id_vat_tu = tk.id_vat_tu
+            LEFT JOIN kho k_tk ON tk.id_kho = k_tk.id_kho
             LEFT JOIN loai_vat_tu lvt ON vt.id_loai_vat_tu = lvt.id_loai_vat_tu
             LEFT JOIN hang_san_xuat hsx ON vt.id_hsx = hsx.id_hsx
             LEFT JOIN don_vi_tinh dvt ON vt.id_dvt = dvt.id_dvt
-            
-            LEFT JOIN (
-                SELECT id_vat_tu, SUM(so_luong) AS tong_nhap FROM chi_tiet_nhap_kho GROUP BY id_vat_tu
-            ) nhap ON vt.id_vat_tu = nhap.id_vat_tu
-            
-            LEFT JOIN (
-                SELECT id_vat_tu, SUM(so_luong) AS tong_xuat FROM chi_tiet_xuat_kho GROUP BY id_vat_tu
-            ) xuat ON vt.id_vat_tu = xuat.id_vat_tu
-            
             WHERE $where_sql
             ORDER BY $sort_col $sort_dir";
 
 $result_main = mysqli_query($conn, $sql_main);
 
-// 4. LẤY DANH SÁCH KHO ĐỂ ĐỔ VÀO DROPDOWN LỌC
 $sql_list_kho = "SELECT id_kho, ten_kho FROM kho ORDER BY ten_kho ASC";
 $result_kho = mysqli_query($conn, $sql_list_kho);
 ?>
@@ -85,8 +74,7 @@ $result_kho = mysqli_query($conn, $sql_list_kho);
         .btn-clear:hover { background: #5a6268; }
         .sort-link { color: white; text-decoration: none; display: block; }
         .sort-link:hover { color: #ffc107; }
-        .badge-danger { background-color: #dc3545; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .badge-success { background-color: #28a745; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-danger { background-color: #dc3545; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -138,24 +126,24 @@ $result_kho = mysqli_query($conn, $sql_list_kho);
                                     </a>
                                 </th>
                                 <th width="15%" class="text-left">
-                                    <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=k.ten_kho&dir=<?php echo $next_dir; ?>">
-                                        Lưu tại Kho <?php if($sort_col=='k.ten_kho') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
+                                    <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=ten_kho&dir=<?php echo $next_dir; ?>">
+                                        Lưu tại Kho <?php if($sort_col=='ten_kho') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
                                     </a>
                                 </th>
-                                <th width="15%" class="text-left">
+                                <th width="10%" class="text-left">
                                     <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=lvt.ten_loai_vat_tu&dir=<?php echo $next_dir; ?>">
-                                        Loại VT <?php if($sort_col=='lvt.ten_loai_vat_tu') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
-                                    </a>
-                                </th>
-                                <th width="15%" class="text-left">
-                                    <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=hsx.ten_hang_san_xuat&dir=<?php echo $next_dir; ?>">
-                                        Hãng SX <?php if($sort_col=='hsx.ten_hang_san_xuat') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
+                                        Loại VT
                                     </a>
                                 </th>
                                 <th width="10%" class="text-center">ĐVT</th>
                                 <th width="15%" class="text-center">
+                                    <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=vt.don_gia&dir=<?php echo $next_dir; ?>">
+                                        Đơn giá chuẩn
+                                    </a>
+                                </th>
+                                <th width="10%" class="text-center">
                                     <a class="sort-link" href="?search=<?php echo urlencode($search_query); ?>&kho=<?php echo urlencode($filter_kho); ?>&sort=ton_kho&dir=<?php echo $next_dir; ?>">
-                                        Số lượng tồn <?php if($sort_col=='ton_kho') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
+                                        Tồn kho <?php if($sort_col=='ton_kho') echo ($sort_dir=='ASC') ? '↑' : '↓'; ?>
                                     </a>
                                 </th>
                             </tr>
@@ -165,28 +153,26 @@ $result_kho = mysqli_query($conn, $sql_list_kho);
                                 if(mysqli_num_rows($result_main) > 0) {
                                     while ($row = mysqli_fetch_assoc($result_main)) {
                                         
-                                        // Hiển thị nhãn Cảnh báo / Còn hàng
                                         $ton_kho = $row['ton_kho'];
-                                        $badge = ($ton_kho <= 0) ? "<span class='badge-danger'>Hết hàng</span>" : "<span class='badge-success'>" . number_format($ton_kho, 0, ',', '.') . "</span>";
+                                        $badge = ($ton_kho <= 0) ? "<span class='badge-danger'>Hết hàng / 0</span>" : "<span style='font-weight:bold; font-size:15px; color:#212529;'>" . number_format($ton_kho, 0, ',', '.') . "</span>";
 
-                                        // Fallback nếu thiếu dữ liệu danh mục (NULL)
-                                        $ten_kho = $row['ten_kho'] ? htmlspecialchars($row['ten_kho']) : "<i>Chưa phân kho</i>";
+                                        $ten_kho = $row['ten_kho'] ? htmlspecialchars($row['ten_kho']) : "<i>Chưa xác định</i>";
                                         $loai_vt = $row['ten_loai_vat_tu'] ? htmlspecialchars($row['ten_loai_vat_tu']) : "<i>-</i>";
-                                        $hang_sx = $row['ten_hang_san_xuat'] ? htmlspecialchars($row['ten_hang_san_xuat']) : "<i>-</i>";
                                         $dvt = $row['ten_don_vi_tinh'] ? htmlspecialchars($row['ten_don_vi_tinh']) : "-";
+                                        $don_gia = ($row['don_gia'] > 0) ? number_format($row['don_gia'], 0, ',', '.') . " đ" : "-";
 
                                         echo "<tr>";
                                         echo "<td class='text-center'><strong>" . htmlspecialchars($row['ma_vat_tu']) . "</strong></td>";
                                         echo "<td class='text-left'>" . htmlspecialchars($row['ten_vat_tu']) . "</td>";
                                         echo "<td class='text-left'>" . $ten_kho . "</td>";
                                         echo "<td class='text-left'>" . $loai_vt . "</td>";
-                                        echo "<td class='text-left'>" . $hang_sx . "</td>";
                                         echo "<td class='text-center'>" . $dvt . "</td>";
+                                        echo "<td class='text-center' style='color:#28a745; font-weight:bold;'>" . $don_gia . "</td>";
                                         echo "<td class='text-center'>" . $badge . "</td>";
                                         echo "</tr>";
                                     }
                                 } else {
-                                    echo "<tr><td colspan='7' class='text-center' style='padding: 20px;'>Không tìm thấy vật tư nào phù hợp với bộ lọc!</td></tr>";
+                                    echo "<tr><td colspan='7' class='text-center' style='padding: 20px;'>Không tìm thấy vật tư nào!</td></tr>";
                                 }
                             ?>
                         </tbody>

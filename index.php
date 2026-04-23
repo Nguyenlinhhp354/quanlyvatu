@@ -1,20 +1,15 @@
 <?php
-include 'db_connect.php'; // Kết nối đến database
 session_start();
+include 'db_connect.php'; // Kết nối đến database
+
 
 // Giả sử đây là đoạn bạn kiểm tra tài khoản và mật khẩu thành công
 $tai_khoan_dung = true;
-
-if ($_SESSION['loggedin'] == false) {
-    // Phát thẻ bài (Tạo session xác nhận đã đăng nhập)
-    $id_nguoi_dung = $_SESSION['id_nguoi_dung']; // Lấy ID người dùng từ session
-    $sql = "SELECT * FROM nguoi_dung WHERE id_nguoi_dung='$id_nguoi_dung'";
-    // Chuyển hướng vào trang chủ
-    $result = mysqli_query($conn, $sql);
-    $ho_ten = $result['ho_ten']; // Lấy họ tên người dùng để hiển thị lên Header
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header("Location: login.php");
     exit();
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -22,7 +17,7 @@ if ($_SESSION['loggedin'] == false) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thịnh Tiến MM</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=<?php echo time(); ?>">
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
@@ -31,9 +26,7 @@ if ($_SESSION['loggedin'] == false) {
 
         <div class="main-content">
             <main>
-                <h2>Trang chủ Quản lý vật tư Thịnh Tiến</h2>
-                <br>
-                <p>Nút ba gạch đã ở bên trái, My System nằm ở giữa và Admin nằm bên phải.</p>
+                
             </main>
             
             <?php include 'includes/footer.php'; ?>

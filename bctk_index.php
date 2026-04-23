@@ -36,12 +36,12 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
                         <p>Xem tổng quan và chi tiết biến động số lượng vật tư trong kho.</p>
                     </a>
                     
-                    <a href="#" class="report-card">
+                    <a href="bctk_suco.php" class="report-card">
                         <h3>Báo cáo chi tiết vật tư sự cố</h3>
                         <p>Theo dõi danh sách vật tư hỏng hóc, mất mát hoặc cần bảo hành.</p>
                     </a>
                     
-                    <a href="#" class="report-card">
+                    <a href="bctk_chenhlechkiemke.php" class="report-card">
                         <h3>Báo cáo đối chiếu chênh lệch kiểm kê</h3>
                         <p>So sánh số liệu trên hệ thống phần mềm và thực tế ngoài kho.</p>
                     </a>
