@@ -1,253 +1,285 @@
 <?php
-session_start();
 include 'db_connect.php';
+session_start();
 
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("Location: login.php");
+if (!isset($_SESSION['loggedin'])) {
+    header("location:login.php");
     exit();
 }
 
-$id_nguoi_dung = $_SESSION['id_nguoi_dung'];
-$bang_phieu_xuat      = 'phieu_xuat_kho';
-$bang_chi_tiet_xuat   = 'chi_tiet_xuat_kho';
+$msg = "";
 
-// --- XỬ LÝ FLASH MESSAGE ---
-$flash = '';
-$flash_type = 'success';
-if (!empty($_SESSION['xuat_flash'])) {
-    $flash = $_SESSION['xuat_flash'];
-    $flash_type = isset($_SESSION['xuat_flash_type']) ? $_SESSION['xuat_flash_type'] : 'success';
-    unset($_SESSION['xuat_flash'], $_SESSION['xuat_flash_type']);
-}
+/* ================= THÊM ================= */
+if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="them"){
 
-// =================================================================================
-// 1. XỬ LÝ THÊM PHIẾU XUẤT (TRỪ TỒN KHO)
-// =================================================================================
-if (isset($_POST['btn_them'])) {
-    $so_phieu = mysqli_real_escape_string($conn, trim($_POST['so_phieu']));
-    $ngay_xuat = mysqli_real_escape_string($conn, str_replace('T', ' ', $_POST['ngay_xuat']));
-    $id_kho = intval($_POST['id_kho']);
-    $id_du_an = intval($_POST['id_du_an']);
-    $ly_do_xuat = mysqli_real_escape_string($conn, $_POST['ly_do_xuat']);
+    $so_phieu = $_POST['so_phieu'];
+    $ngay_xuat = $_POST['ngay_xuat'];
+    $id_kho = $_POST['id_kho'];
+    $id_du_an = $_POST['id_du_an'];
+    $id_nguoi_lap = $_POST['id_nguoi_lap'];
+    $nguoi_nhan = $_POST['nguoi_nhan'];
+    $ly_do = $_POST['ly_do'];
 
-    $id_vat_tu_arr = $_POST['id_vat_tu'];
-    $so_luong_arr  = $_POST['so_luong_xuat'];
+    $id_vat_tu = $_POST['id_vat_tu'];
+    $so_luong = $_POST['so_luong'];
 
-    mysqli_begin_transaction($conn);
-    try {
-        // Kiểm tra trùng số phiếu
-        $chk = mysqli_query($conn, "SELECT id_phieu_xuat FROM `$bang_phieu_xuat` WHERE so_phieu='$so_phieu'");
-        if (mysqli_num_rows($chk) > 0) throw new Exception("Số phiếu '$so_phieu' đã tồn tại!");
+    $check = $conn->query("SELECT * FROM phieu_xuat_kho WHERE so_phieu='$so_phieu'");
 
-        // Lưu phiếu chính
-        $sql_ins = "INSERT INTO `$bang_phieu_xuat` (so_phieu, ngay_xuat, id_kho, id_du_an, id_nguoi_lap, ly_do_xuat) 
-                    VALUES ('$so_phieu', '$ngay_xuat', '$id_kho', '$id_du_an', '$id_nguoi_dung', '$ly_do_xuat')";
-        if (!mysqli_query($conn, $sql_ins)) throw new Exception("Lỗi tạo phiếu: " . mysqli_error($conn));
-        $id_phieu_moi = mysqli_insert_id($conn);
+    if($check->num_rows > 0){
+        $msg = "Số phiếu đã tồn tại!";
+    }else{
+        $conn->begin_transaction();
+        try{
+            $conn->query("
+                INSERT INTO phieu_xuat_kho (so_phieu, ngay_xuat, id_kho, id_du_an, id_nguoi_lap, nguoi_nhan, ly_do_xuat)
+                VALUES ('$so_phieu', '$ngay_xuat', '$id_kho', '$id_du_an', '$id_nguoi_lap', '$nguoi_nhan', '$ly_do')
+            ");
 
-        // Lưu chi tiết & Trừ tồn
-        for ($i = 0; $i < count($id_vat_tu_arr); $i++) {
-            $vid = intval($id_vat_tu_arr[$i]);
-            $sl  = intval($so_luong_arr[$i]);
-            if ($vid <= 0 || $sl <= 0) continue;
+            $id_phieu = $conn->insert_id;
 
-            // Kiểm tra tồn thực tế
-            $res_sl = mysqli_query($conn, "SELECT so_luong_ton FROM ton_kho WHERE id_kho='$id_kho' AND id_vat_tu='$vid'");
-            $row_sl = mysqli_fetch_assoc($res_sl);
-            if (!$row_sl || $row_sl['so_luong_ton'] < $sl) throw new Exception("Vật tư ID $vid không đủ tồn kho!");
+            for($i=0;$i<count($id_vat_tu);$i++){
+                $vt = $id_vat_tu[$i];
+                $sl = $so_luong[$i];
 
-            mysqli_query($conn, "INSERT INTO `$bang_chi_tiet_xuat` (id_phieu_xuat, id_vat_tu, so_luong) VALUES ('$id_phieu_moi', '$vid', '$sl')");
-            mysqli_query($conn, "UPDATE ton_kho SET so_luong_ton = so_luong_ton - $sl WHERE id_kho='$id_kho' AND id_vat_tu='$vid'");
+                $ton = $conn->query("SELECT so_luong_ton FROM ton_kho WHERE id_kho='$id_kho' AND id_vat_tu='$vt'");
+                $row = $ton->fetch_assoc();
+                if(!$row){
+                    throw new Exception("Vật tư này chưa tồn tại trong kho");
+                }
+
+                if($row['so_luong_ton'] < $sl){
+                    throw new Exception("Không đủ tồn kho cho vật tư mã: $vt");
+                }
+
+                $conn->query("INSERT INTO chi_tiet_xuat_kho VALUES('$id_phieu','$vt','$sl')");
+
+                $conn->query("UPDATE ton_kho SET so_luong_ton = so_luong_ton - $sl WHERE id_kho='$id_kho' AND id_vat_tu='$vt'");
+            }
+
+            $conn->commit();
+            header("location:quanlyphieuxuatkho.php");
+            exit();
+        }catch(Exception $e){
+            $conn->rollback();
+            $msg = $e->getMessage();
         }
-
-        mysqli_commit($conn);
-        $_SESSION['xuat_flash'] = "Thêm phiếu và trừ tồn thành công!";
-    } catch (Exception $e) {
-        mysqli_rollback($conn);
-        $_SESSION['xuat_flash'] = $e->getMessage();
-        $_SESSION['xuat_flash_type'] = 'error';
     }
-    header("Location: quanlyphieuxuatkho.php"); exit();
 }
 
-// =================================================================================
-// 2. XỬ LÝ XÓA PHIẾU (HOÀN TỒN KHO)
-// =================================================================================
-if (isset($_GET['xoa'])) {
-    $id_xoa = intval($_GET['xoa']);
-    mysqli_begin_transaction($conn);
-    try {
-        $p_res = mysqli_query($conn, "SELECT id_kho FROM `$bang_phieu_xuat` WHERE id_phieu_xuat='$id_xoa'");
-        $id_kho_xoa = mysqli_fetch_assoc($p_res)['id_kho'];
+/* ================= SỬA (ĐÃ FIX) ================= */
+else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="sua"){
+    $id_phieu = $_POST['id_phieu'];
+    $so_phieu = $_POST['so_phieu'];
+    $ngay_xuat = $_POST['ngay_xuat'];
+    $nguoi_nhan = $_POST['nguoi_nhan'];
+    $ly_do = $_POST['ly_do'];
 
-        $ct_res = mysqli_query($conn, "SELECT id_vat_tu, so_luong FROM `$bang_chi_tiet_xuat` WHERE id_phieu_xuat='$id_xoa'");
-        while ($ct = mysqli_fetch_assoc($ct_res)) {
-            $vid = $ct['id_vat_tu']; $sl = $ct['so_luong'];
-            mysqli_query($conn, "UPDATE ton_kho SET so_luong_ton = so_luong_ton + $sl WHERE id_kho='$id_kho_xoa' AND id_vat_tu='$vid'");
-        }
-        mysqli_query($conn, "DELETE FROM `$bang_chi_tiet_xuat` WHERE id_phieu_xuat='$id_xoa'");
-        mysqli_query($conn, "DELETE FROM `$bang_phieu_xuat` WHERE id_phieu_xuat='$id_xoa'");
-        
-        mysqli_commit($conn);
-        $_SESSION['xuat_flash'] = "Đã xóa phiếu và hoàn tồn!";
-    } catch (Exception $e) {
-        mysqli_rollback($conn);
-        $_SESSION['xuat_flash'] = "Lỗi xóa: " . $e->getMessage();
-        $_SESSION['xuat_flash_type'] = 'error';
+    // Cập nhật thông tin cơ bản của phiếu
+    $conn->query("
+        UPDATE phieu_xuat_kho
+        SET so_phieu = '$so_phieu',
+            ngay_xuat = '$ngay_xuat',
+            nguoi_nhan = '$nguoi_nhan',
+            ly_do_xuat = '$ly_do'
+        WHERE id_phieu_xuat = '$id_phieu'
+    ");
+
+    header("location:quanlyphieuxuatkho.php");
+    exit();
+}
+
+/* ================= XÓA ================= */
+else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="xoa"){
+    $id_phieu = $_POST['id_phieu'];
+    $id_kho = $_POST['id_kho'];
+
+    $ct = $conn->query("SELECT * FROM chi_tiet_xuat_kho WHERE id_phieu_xuat='$id_phieu'");
+    while($row = $ct->fetch_assoc()){
+        $conn->query("UPDATE ton_kho SET so_luong_ton = so_luong_ton + ".$row['so_luong']." WHERE id_kho='$id_kho' AND id_vat_tu='".$row['id_vat_tu']."'");
     }
-    header("Location: quanlyphieuxuatkho.php"); exit();
+
+    $conn->query("DELETE FROM chi_tiet_xuat_kho WHERE id_phieu_xuat='$id_phieu'");
+    $conn->query("DELETE FROM phieu_xuat_kho WHERE id_phieu_xuat='$id_phieu'");
+
+    header("location:quanlyphieuxuatkho.php");
+    exit();
 }
 
-// --- DỮ LIỆU BỔ TRỢ ---
-$auto_so_phieu = 'PXK-' . date('Ymd') . '-' . time();
-$kho_list = mysqli_query($conn, "SELECT * FROM kho");
-$da_list = mysqli_query($conn, "SELECT * FROM du_an");
-$vt_list = mysqli_query($conn, "SELECT * FROM vat_tu");
-$vt_options = "";
-while($v = mysqli_fetch_assoc($vt_list)) {
-    $vt_options .= "<option value='{$v['id_vat_tu']}'>{$v['ma_vat_tu']} - {$v['ten_vat_tu']}</option>";
+/* ================= TÌM KIẾM ================= */
+$timkiem = "";
+if(isset($_POST['btn_timkiem'])){
+    $timkiem = $_POST['timkiem'];
+    $sql = "SELECT * FROM phieu_xuat_kho WHERE so_phieu LIKE '%$timkiem%'";
+} else {
+    $sql = "SELECT * FROM phieu_xuat_kho";
 }
+
+$result = $conn->query($sql);
+$kho = $conn->query("SELECT * FROM kho");
+$duan = $conn->query("SELECT * FROM du_an");
+$nguoidung = $conn->query("SELECT * FROM nguoi_dung");
+$vattu = $conn->query("SELECT * FROM vat_tu");
 ?>
 
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Quản lý Phiếu xuất kho - Thịnh Tiến MM</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css?v=<?=time()?>">
-    <style>
-        .no-print { margin-bottom: 20px; }
-        .data-table th { background: #343a40; color: white; text-align: center; }
-        @media print {
-            body * { visibility: hidden; }
-            #khuVucInPhieu, #khuVucInPhieu * { visibility: visible; }
-            #khuVucInPhieu { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
-            .no-print { display: none !important; }
-            .print-table { border: 1px solid #000 !important; width: 100%; border-collapse: collapse; }
-            .print-table th, .print-table td { border: 1px solid #000 !important; padding: 8px; color: #000; }
-        }
-    </style>
+    <title>Phiếu xuất kho</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include 'includes/header.php'; ?>
-    <div class="wrapper">
-        <?php include 'includes/sidebar.php'; ?>
-        <div class="main-content">
-            <main class="container-fluid py-3">
 
-            <?php if (isset($_GET['action']) && $_GET['action'] == 'view' && isset($_GET['id'])): 
-                $id_view = intval($_GET['id']);
-                $sql = "SELECT px.*, k.ten_kho, da.ten_du_an, nd.ho_ten FROM `$bang_phieu_xuat` px 
-                        LEFT JOIN kho k ON px.id_kho = k.id_kho 
-                        LEFT JOIN du_an da ON px.id_du_an = da.id_du_an
-                        LEFT JOIN nguoi_dung nd ON px.id_nguoi_lap = nd.id_nguoi_dung WHERE px.id_phieu_xuat = '$id_view'";
-                $phieu = mysqli_fetch_assoc(mysqli_query($conn, $sql));
-            ?>
-                <div class="no-print">
-                    <a href="quanlyphieuxuatkho.php" class="btn btn-secondary">&laquo; Quay lại</a>
-                    <button onclick="window.print()" class="btn btn-primary">🖨 In Phiếu Xuất</button>
-                </div>
+<?php include 'includes/header.php'; ?>
 
-                <div id="khuVucInPhieu" class="bg-white p-5 border shadow-sm">
-                    <div class="d-flex justify-content-between border-bottom pb-3 mb-4">
-                        <div><h3>CÔNG TY CP THỊNH TIẾN</h3><p><i>Giải pháp Vật tư hàng đầu</i></p></div>
-                        <div class="text-right"><p><b>Mẫu số: 02-VT</b></p><p>Thông tư 200/2014/TT-BTC</p></div>
-                    </div>
-                    <div class="text-center mb-4">
-                        <h2 class="font-weight-bold">PHIẾU XUẤT KHO</h2>
-                        <p>Ngày: <?=date('d/m/Y', strtotime($phieu['ngay_xuat']))?> | Số: <b class="text-danger"><?=$phieu['so_phieu']?></b></p>
-                    </div>
-                    <div class="mb-4">
-                        <p>- Xuất cho dự án: <b><?=$phieu['ten_du_an']?></b></p>
-                        <p>- Kho xuất: <b><?=$phieu['ten_kho']?></b></p>
-                        <p>- Lý do: <?=$phieu['ly_do_xuat']?></p>
-                    </div>
-                    <table class="print-table mb-5">
-                        <thead><tr><th>STT</th><th>Mã vật tư</th><th>Tên vật tư</th><th>ĐVT</th><th>Số lượng</th></tr></thead>
-                        <tbody>
-                            <?php 
-                            $stt=1; 
-                            $res_ct = mysqli_query($conn, "SELECT ct.*, vt.ma_vat_tu, vt.ten_vat_tu, d.ten_don_vi_tinh FROM `$bang_chi_tiet_xuat` ct 
-                                                           JOIN vat_tu vt ON ct.id_vat_tu = vt.id_vat_tu 
-                                                           LEFT JOIN don_vi_tinh d ON vt.id_dvt = d.id_dvt WHERE ct.id_phieu_xuat='$id_view'");
-                            while($i = mysqli_fetch_assoc($res_ct)): ?>
-                            <tr><td class="text-center"><?=$stt++?></td><td class="text-center"><?=$i['ma_vat_tu']?></td><td><?=$i['ten_vat_tu']?></td><td class="text-center"><?=$i['ten_don_vi_tinh']?></td><td class="text-center font-weight-bold"><?=$i['so_luong']?></td></tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                    <div class="d-flex justify-content-around text-center mt-5">
-                        <div><p><b>Người lập</b></p><br><br><b><?=$phieu['ho_ten']?></b></div>
-                        <div><p><b>Người nhận</b></p></div>
-                        <div><p><b>Thủ kho</b></p></div>
-                    </div>
-                </div>
+<div class="wrapper d-flex">
+    <?php include 'includes/sidebar.php'; ?>
+    <div class="main-content flex-grow-1 p-4 bg-light">
 
-            <?php else: ?>
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="text-primary">Quản lý Phiếu Xuất Kho</h2>
-                    <button class="btn btn-success font-weight-bold" data-toggle="modal" data-target="#modalThem">+ Thêm Phiếu Mới</button>
-                </div>
+        <?php if($msg!=""){ echo "<div class='alert alert-danger'>$msg</div>"; } ?>
 
-                <?php if($flash) echo "<div class='alert alert-$flash_type'>$flash</div>"; ?>
-
-                <table class="table table-hover bg-white border">
-                    <thead><tr><th>STT</th><th>Số phiếu</th><th>Ngày xuất</th><th>Kho</th><th>Dự án</th><th>Thao tác</th></tr></thead>
-                    <tbody>
-                        <?php 
-                        $res = mysqli_query($conn, "SELECT px.*, k.ten_kho, da.ten_du_an FROM `$bang_phieu_xuat` px 
-                                                    LEFT JOIN kho k ON px.id_kho = k.id_kho 
-                                                    LEFT JOIN du_an da ON px.id_du_an = da.id_du_an ORDER BY px.id_phieu_xuat DESC");
-                        $s=1; while($r = mysqli_fetch_assoc($res)): ?>
-                        <tr>
-                            <td class="text-center"><?=$s++?></td>
-                            <td class="font-weight-bold text-primary"><?=$r['so_phieu']?></td>
-                            <td><?=date('d/m/Y H:i', strtotime($r['ngay_xuat']))?></td>
-                            <td><?=$r['ten_kho']?></td>
-                            <td><?=$r['ten_du_an']?></td>
-                            <td class="text-center">
-                                <a href="?action=view&id=<?=$r['id_phieu_xuat']?>" class="btn btn-info btn-sm">👁 In</a>
-                                <a href="?xoa=<?=$r['id_phieu_xuat']?>" class="btn btn-danger btn-sm" onclick="return confirm('Xóa phiếu sẽ hoàn lại tồn kho. Chắc chắn?')">🗑 Xóa</a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
-            </main>
-        </div>
-    </div>
-
-    <div class="modal fade" id="modalThem" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <form method="POST" class="modal-content">
-                <div class="modal-header bg-success text-white"><h5 class="modal-title">Lập Phiếu Xuất Kho</h5><button class="close text-white" data-dismiss="modal">&times;</button></div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="form-group col-md-3"><label>Số phiếu</label><input type="text" name="so_phieu" class="form-control" value="<?=$auto_so_phieu?>" readonly></div>
-                        <div class="form-group col-md-3"><label>Ngày xuất</label><input type="datetime-local" name="ngay_xuat" class="form-control" value="<?=date('Y-m-d\TH:i')?>"></div>
-                        <div class="form-group col-md-3"><label>Kho xuất</label><select name="id_kho" class="form-control"><?php mysqli_data_seek($kho_list, 0); while($k = mysqli_fetch_assoc($kho_list)) echo "<option value='{$k['id_kho']}'>{$k['ten_kho']}</option>"; ?></select></div>
-                        <div class="form-group col-md-3"><label>Dự án nhận</label><select name="id_du_an" class="form-control"><?php mysqli_data_seek($da_list, 0); while($da = mysqli_fetch_assoc($da_list)) echo "<option value='{$da['id_du_an']}'>{$da['ten_du_an']}</option>"; ?></select></div>
-                        <div class="form-group col-md-12"><label>Lý do xuất</label><input type="text" name="ly_do_xuat" class="form-control"></div>
-                    </div>
-                    <table class="table table-bordered">
-                        <thead class="bg-light"><tr><th>Vật tư</th><th width="20%">Số lượng</th><th width="10%">Xóa</th></tr></thead>
-                        <tbody id="tbodyVatTu"><tr><td><select name="id_vat_tu[]" class="form-control"><?=$vt_options?></select></td><td><input type="number" name="so_luong_xuat[]" class="form-control" min="1" required></td><td><button type="button" class="btn btn-danger btn-block" onclick="this.closest('tr').remove()">X</button></td></tr></tbody>
-                    </table>
-                    <button type="button" class="btn btn-outline-info btn-sm" onclick="addRow()">+ Thêm vật tư</button>
-                </div>
-                <div class="modal-footer"><button class="btn btn-secondary" data-dismiss="modal">Đóng</button><button type="submit" name="btn_them" class="btn btn-success">Lưu & Xuất Kho</button></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <form method="post" class="d-flex gap-2 w-50">
+                <input type="text" name="timkiem" class="form-control" placeholder="Tìm số phiếu..." value="<?php echo $timkiem ?>">
+                <button name="btn_timkiem" class="btn btn-dark">Tìm kiếm</button>
             </form>
+            <button class="btn btn-success" onclick="moboxthem()">+ Thêm phiếu xuất</button>
+        </div>
+
+        <div class="bg-white p-3 border rounded">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Số phiếu</th>
+                        <th>Ngày xuất</th>
+                        <th>Lý do</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach($result as $item){ 
+                    // CHỖ NÀY QUAN TRỌNG: Format lại ngày để input datetime-local hiển thị được
+                    $ngay_sua = date('Y-m-d\TH:i', strtotime($item['ngay_xuat']));
+                ?>
+                    <tr>
+                        <td><?php echo $item['so_phieu'] ?></td>
+                        <td><?php echo $item['ngay_xuat'] ?></td>
+                        <td><?php echo $item['ly_do_xuat'] ?></td>
+                        <td>
+                            <button class="btn btn-primary btn-sm"
+                                onclick="moboxsua('<?php echo $item['id_phieu_xuat']?>', '<?php echo $item['so_phieu']?>', '<?php echo $ngay_sua ?>', '<?php echo $item['ly_do_xuat']?>', '<?php echo $item['nguoi_nhan']?>')">
+                                Sửa
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="xoa('<?php echo $item['id_phieu_xuat']?>', '<?php echo $item['id_kho']?>')">
+                                Xóa
+                            </button>
+                             <a href="inphieuxuat.php?id=<?php echo $item['id_phieu_xuat']?>"
+                                target="_blank" class="btn btn-secondary btn-sm"> In </a>
+                        </td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function addRow() {
-            var row = `<tr><td><select name="id_vat_tu[]" class="form-control"><?=$vt_options?></select></td><td><input type="number" name="so_luong_xuat[]" class="form-control" min="1" required></td><td><button type="button" class="btn btn-danger btn-block" onclick="this.closest('tr').remove()">X</button></td></tr>`;
-            document.getElementById('tbodyVatTu').insertAdjacentHTML('beforeend', row);
-        }
-    </script>
+<div id="modalbox" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div class="bg-white p-4 rounded" style="width:500px; max-height: 90vh; overflow-y: auto;">
+        <h4 id="tieude_modal">Phiếu xuất</h4>
+        <form method="post">
+            <input type="hidden" name="hanh_dong" id="hanh_dong">
+            <input type="hidden" name="id_phieu" id="id_phieu">
+
+            <div class="mb-2">
+                <label>Số phiếu</label>
+                <input type="text" name="so_phieu" id="so_phieu" class="form-control" required>
+            </div>
+            <div class="mb-2">
+                <label>Ngày xuất</label>
+                <input type="datetime-local" name="ngay_xuat" id="ngay_xuat" class="form-control" required>
+            </div>
+            <div class="mb-2">
+                <label>Lý do</label>
+                <input type="text" name="ly_do" id="ly_do" class="form-control">
+            </div>
+            <div class="mb-2">
+                <label>Người nhận</label>
+                <input type="text" name="nguoi_nhan" id="nguoi_nhan" class="form-control">
+            </div>
+
+            <div id="vung_chon_them">
+                <div class="mb-2">
+                    <label>Kho</label>
+                    <select name="id_kho" class="form-control">
+                        <?php foreach($kho as $k){ echo "<option value='".$k['id_kho']."'>".$k['ten_kho']."</option>"; } ?>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Dự án</label>
+                    <select name="id_du_an" class="form-control">
+                        <?php foreach($duan as $d){ echo "<option value='".$d['id_du_an']."'>".$d['ten_du_an']."</option>"; } ?>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Người lập</label>
+                    <select name="id_nguoi_lap" class="form-control">
+                        <?php foreach($nguoidung as $n){ echo "<option value='".$n['id_nguoi_dung']."'>".$n['ho_ten']."</option>"; } ?>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Vật tư</label>
+                    <select name="id_vat_tu[]" class="form-control">
+                        <?php foreach($vattu as $v){ echo "<option value='".$v['id_vat_tu']."'>".$v['ten_vat_tu']."</option>"; } ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Số lượng</label>
+                    <input type="number" name="so_luong[]" class="form-control">
+                </div>
+            </div>
+
+            <button class="btn btn-success">Lưu</button>
+            <button type="button" class="btn btn-secondary" onclick="dongbox()">Hủy</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function moboxthem(){
+    document.querySelector("#modalbox form").reset();
+    document.getElementById("modalbox").style.display="flex";
+    document.getElementById("tieude_modal").innerText="Thêm phiếu xuất";
+    document.getElementById("hanh_dong").value="them";
+    document.getElementById("vung_chon_them").style.display="block"; // Hiện phần chọn vật tư
+}
+
+function moboxsua(id, sophieu, ngay, lydo, nguoinhan){
+    document.getElementById("modalbox").style.display="flex";
+    document.getElementById("tieude_modal").innerText="Sửa phiếu xuất";
+    document.getElementById("hanh_dong").value="sua";
+    document.getElementById("vung_chon_them").style.display="none"; // Ẩn phần vật tư khi sửa để tránh lỗi kho
+
+    document.getElementById("id_phieu").value = id;
+    document.getElementById("so_phieu").value = sophieu;
+    document.getElementById("ngay_xuat").value = ngay;
+    document.getElementById("ly_do").value = lydo;
+    document.getElementById("nguoi_nhan").value = nguoinhan;
+}
+
+function dongbox(){
+    document.getElementById("modalbox").style.display="none";
+}
+
+function xoa(id, idkho){
+    if(confirm("Bạn có muốn xóa phiếu này không?")){
+        let form = document.createElement("form");
+        form.method = "post";
+        form.innerHTML = `<input name="hanh_dong" value="xoa"><input name="id_phieu" value="${id}"><input name="id_kho" value="${idkho}">`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 </body>
 </html>
