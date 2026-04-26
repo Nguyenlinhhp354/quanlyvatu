@@ -54,10 +54,12 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
     <title>Chủng loại vật tư - Thịnh Tiến</title>
     <link rel="stylesheet" href="/css/style.css?v=<?php echo time(); ?>">
     <style>
-        /* Layout cấu trúc ngang */
-        .wrapper { display: flex; align-items: flex-start; min-height: 100vh; }
-        .main-content { flex: 1; padding: 20px; box-sizing: border-box; background: #f4f7f6; }
-        
+        .page-title { 
+            color: #007bff; 
+            font-size: 22px; 
+            font-weight: bold; 
+            margin-bottom: 25px;
+        }
         /* Thông báo Modal */
         .msg-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; }
         .msg-box { background: white; padding: 25px; border-radius: 5px; text-align: center; min-width: 350px; border: 2px solid #333; }
@@ -78,10 +80,7 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
         
         <div class="main-content">
             <main>
-                <div style="margin-bottom: 20px;">
-                    <a href="quanlydanhmuc.php" style="font-weight:bold; color:blue; text-decoration:none;">Quản lí danh mục</a> &gt; Chủng loại vật tư
-                </div>
-
+                <div class="page-title">Chủng loại vật tư</div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <form method="GET" style="display: flex; gap: 5px;">
                         <input type="text" name="search" placeholder="Tìm ID hoặc Tên..." value="<?=htmlspecialchars($search)?>" style="padding: 8px; width: 250px; border: 1px solid #ccc;">
