@@ -10,7 +10,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 $id_nguoi_dung = $_SESSION['id_nguoi_dung']; 
 
 // =================================================================================
-// 2. XỬ LÝ LƯU PHIẾU NHẬP (TẠO PHIẾU + TẠO VẬT TƯ MỚI + THÊM CHI TIẾT + CỘNG TỒN KHO)
+// 2. XỬ LÝ LƯU PHIẾU NHẬP (CHỈ CHO PHÉP CHỌN VẬT TƯ ĐÃ CÓ)
 // =================================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'add_phieu') {
     $so_phieu = mysqli_real_escape_string($conn, $_POST['so_phieu']);
@@ -30,41 +30,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         if(!mysqli_query($conn, $sql_phieu)) throw new Exception("Không thể tạo phiếu nhập!");
         $new_phieu_id = mysqli_insert_id($conn);
 
-        if(!isset($_POST['vt_type']) || empty($_POST['vt_type'])) throw new Exception("Phiếu nhập phải có ít nhất 1 vật tư!");
+        if(!isset($_POST['id_vat_tu']) || empty($_POST['id_vat_tu'])) throw new Exception("Phiếu nhập phải có ít nhất 1 vật tư!");
 
-        $types = $_POST['vt_type'];
-        $old_ids = $_POST['id_vat_tu_old'];
-        $new_mas = $_POST['new_ma_vt'];
-        $new_tens = $_POST['new_ten_vt'];
-        $new_dvts = $_POST['new_id_dvt'];
+        $vat_tu_ids = $_POST['id_vat_tu'];
         $so_luongs = $_POST['so_luong'];
         $don_gias = $_POST['don_gia'];
 
-        for($i = 0; $i < count($types); $i++) {
+        for($i = 0; $i < count($vat_tu_ids); $i++) {
             $sl = floatval($so_luongs[$i]);
             $gia = floatval($don_gias[$i]);
+            $final_vt_id = intval($vat_tu_ids[$i]);
+
+            if($final_vt_id == 0) throw new Exception("Vui lòng chọn một vật tư hợp lệ!");
             if($sl <= 0) throw new Exception("Số lượng nhập phải lớn hơn 0!");
-
-            $final_vt_id = 0;
-
-            if($types[$i] == 'old') {
-                $final_vt_id = intval($old_ids[$i]);
-                if($final_vt_id == 0) throw new Exception("Vui lòng chọn một vật tư hợp lệ!");
-            } else {
-                $ma_moi = mysqli_real_escape_string($conn, trim($new_mas[$i]));
-                $ten_moi = mysqli_real_escape_string($conn, trim($new_tens[$i]));
-                $dvt_moi = intval($new_dvts[$i]);
-
-                if(empty($ma_moi) || empty($ten_moi)) throw new Exception("Vui lòng nhập đủ Mã và Tên cho vật tư mới!");
-                
-                $check_ma = mysqli_query($conn, "SELECT id_vat_tu FROM vat_tu WHERE ma_vat_tu='$ma_moi'");
-                if(mysqli_num_rows($check_ma) > 0) throw new Exception("Mã vật tư '$ma_moi' đã tồn tại, hãy chọn từ danh mục!");
-
-                // Đã thay id_kho bằng don_gia cho bảng vat_tu
-                $sql_vt = "INSERT INTO vat_tu (ma_vat_tu, ten_vat_tu, id_dvt, don_gia) VALUES ('$ma_moi', '$ten_moi', '$dvt_moi', '$gia')";
-                if(!mysqli_query($conn, $sql_vt)) throw new Exception("Lỗi khi tạo mới vật tư '$ma_moi'!");
-                $final_vt_id = mysqli_insert_id($conn);
-            }
 
             $sql_ct = "INSERT INTO chi_tiet_nhap_kho (id_phieu_nhap, id_vat_tu, so_luong, don_gia) 
                        VALUES ('$new_phieu_id', '$final_vt_id', '$sl', '$gia')";
@@ -141,9 +119,6 @@ $auto_so_phieu = $prefix_pnk . $next_stt;
 $kho_res = mysqli_query($conn, "SELECT id_kho, ten_kho FROM kho ORDER BY ten_kho ASC");
 $kho_list = []; while($k = mysqli_fetch_assoc($kho_res)) { $kho_list[] = $k; }
 
-$dvt_res = mysqli_query($conn, "SELECT id_dvt, ten_don_vi_tinh FROM don_vi_tinh");
-$dvt_list = []; while($d = mysqli_fetch_assoc($dvt_res)) { $dvt_list[] = $d; }
-
 $vt_res = mysqli_query($conn, "SELECT id_vat_tu, ma_vat_tu, ten_vat_tu FROM vat_tu ORDER BY ten_vat_tu ASC");
 $vt_list = []; while($v = mysqli_fetch_assoc($vt_res)) { $vt_list[] = $v; }
 
@@ -174,23 +149,26 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
         
         .table-input { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .table-input th { background: #e9ecef; padding: 10px; text-align: center; border: 1px solid #ccc; font-size: 13px;}
-        .table-input td { padding: 8px; border: 1px solid #ccc; vertical-align: top;}
-        .table-input input, .table-input select { width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
+        .table-input td { padding: 8px; border: 1px solid #ccc; vertical-align: middle;}
+        .table-input input, .table-input select { width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
         
         .btn-remove-row { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
 
         .btn-print { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; }
         .btn-back { background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; margin-right: 10px;}
 
+        .print-table { border-collapse: collapse; width: 100%; margin-top: 15px;}
+        .print-table th, .print-table td { border: 1px solid #000 !important; padding: 10px; color: #000; text-align: center;}
+        .print-table th { background-color: #e9ecef !important; }
+
+        .print-signature { display: flex; justify-content: space-around; margin-top: 40px; text-align: center; font-weight: bold; color: #000; }
+
         @media print {
             body * { visibility: hidden; }
             #khuVucInPhieu, #khuVucInPhieu * { visibility: visible; }
             #khuVucInPhieu { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0;}
             .no-print { display: none !important; }
-            .print-table { border-collapse: collapse; width: 100%; margin-top: 15px;}
-            .print-table th, .print-table td { border: 1px solid #000 !important; padding: 10px; color: #000; text-align: center;}
-            .print-table th { background-color: #e9ecef !important; -webkit-print-color-adjust: exact; }
-            .print-signature { display: flex; justify-content: space-around; margin-top: 40px; text-align: center; font-weight: bold; color: #000; }
+            .print-table th { -webkit-print-color-adjust: exact; }
         }
     </style>
 </head>
@@ -370,8 +348,8 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
                                         echo "<td class='text-left'>".$r['ghi_chu']."</td>";
                                         echo "<td class='text-center'>
                                                 <div style='display: flex; justify-content: center; gap: 8px;'>
-                                                    <a href='quanlyphieunhapkho.php?action=view&id=".$r['id_phieu_nhap']."' class='btn-action btn-view' style='background:#17a2b8; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;'>👁 Xem / In</a>
-                                                    <a href='quanlyphieunhapkho.php?delete=".$r['id_phieu_nhap']."' class='btn-action btn-delete' style='padding:6px 12px; font-size:13px;' onclick='return confirm(\"CẢNH BÁO: Xóa phiếu nhập này sẽ tự động trừ số lượng vật tư tương ứng trong kho. Bạn có chắc chắn?\");'>🗑 Xóa</a>
+                                                    <a href='quanlyphieunhapkho.php?action=view&id=".$r['id_phieu_nhap']."' class='btn-action btn-view' style='background:#17a2b8; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;'> Xem / In</a>
+                                                    <a href='quanlyphieunhapkho.php?delete=".$r['id_phieu_nhap']."' class='btn-action btn-delete' style='padding:6px 12px; font-size:13px;' onclick='return confirm(\"CẢNH BÁO: Xóa phiếu nhập này sẽ tự động trừ số lượng vật tư tương ứng trong kho. Bạn có chắc chắn?\");'> Xóa</a>
                                                 </div>
                                               </td>";
                                         echo "</tr>";
@@ -436,39 +414,21 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
                 <table class="table-input" id="tableVatTu">
                     <thead>
                         <tr>
-                            <th width="15%">Loại</th>
-                            <th width="45%">Thông tin Vật tư</th>
-                            <th width="15%">Số lượng</th>
-                            <th width="15%">Đơn giá (VNĐ)</th>
+                            <th width="50%">Thông tin Vật tư</th>
+                            <th width="20%">Số lượng</th>
+                            <th width="20%">Đơn giá (VNĐ)</th>
                             <th width="10%">Xóa</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyVatTu">
                         <tr>
                             <td>
-                                <select name="vt_type[]" onchange="toggleVtType(this)" style="background:#eef;">
-                                    <option value="old">Đã có trong kho</option>
-                                    <option value="new">Tạo mới</option>
+                                <select name="id_vat_tu[]" required>
+                                    <option value="0">-- Chọn vật tư --</option>
+                                    <?php foreach($vt_list as $vt): ?>
+                                        <option value="<?=$vt['id_vat_tu']?>"><?=$vt['ma_vat_tu']?> - <?=$vt['ten_vat_tu']?></option>
+                                    <?php endforeach; ?>
                                 </select>
-                            </td>
-                            <td>
-                                <div class="vt-old">
-                                    <select name="id_vat_tu_old[]">
-                                        <option value="0">-- Chọn vật tư --</option>
-                                        <?php foreach($vt_list as $vt): ?>
-                                            <option value="<?=$vt['id_vat_tu']?>"><?=$vt['ma_vat_tu']?> - <?=$vt['ten_vat_tu']?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="vt-new" style="display:none; gap: 5px; flex-direction:column;">
-                                    <input type="text" name="new_ma_vt[]" placeholder="Nhập Mã vật tư (VD: THEP-D10)">
-                                    <input type="text" name="new_ten_vt[]" placeholder="Nhập Tên vật tư">
-                                    <select name="new_id_dvt[]">
-                                        <?php foreach($dvt_list as $d): ?>
-                                            <option value="<?=$d['id_dvt']?>"><?=$d['ten_don_vi_tinh']?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
                             </td>
                             <td><input type="number" name="so_luong[]" min="1" step="0.01" required placeholder="0"></td>
                             <td><input type="number" name="don_gia[]" min="0" placeholder="0"></td>
@@ -491,33 +451,20 @@ $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['searc
         function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
         function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
 
-        function toggleVtType(selectObj) {
-            var tr = selectObj.closest('tr');
-            var oldDiv = tr.querySelector('.vt-old');
-            var newDiv = tr.querySelector('.vt-new');
-            
-            if(selectObj.value === 'new') {
-                oldDiv.style.display = 'none';
-                newDiv.style.display = 'flex';
-            } else {
-                oldDiv.style.display = 'block';
-                newDiv.style.display = 'none';
-            }
-        }
+        // Đã xóa hàm toggleVtType vì không còn chức năng Tạo mới vật tư
 
         function addRow() {
             var tbody = document.getElementById('tbodyVatTu');
             var firstRow = tbody.querySelector('tr');
             var newRow = firstRow.cloneNode(true);
             
-            var inputs = newRow.querySelectorAll('input[type="text"], input[type="number"]');
+            // Xóa trắng ô input số lượng và đơn giá
+            var inputs = newRow.querySelectorAll('input[type="number"]');
             inputs.forEach(function(input) { input.value = ''; });
             
+            // Đặt select về giá trị mặc định (Option 0)
             var selects = newRow.querySelectorAll('select');
             selects.forEach(function(select) { select.selectedIndex = 0; });
-            
-            newRow.querySelector('.vt-old').style.display = 'block';
-            newRow.querySelector('.vt-new').style.display = 'none';
 
             tbody.appendChild(newRow);
         }
