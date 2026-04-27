@@ -9,7 +9,6 @@ if (!isset($_SESSION['loggedin'])) {
 
 $msg = "";
 
-/* ================= THÊM ================= */
 if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="them"){
 
     $so_phieu = $_POST['so_phieu'];
@@ -66,7 +65,6 @@ if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="them"){
     }
 }
 
-/* ================= SỬA (ĐÃ FIX) ================= */
 else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="sua"){
     $id_phieu = $_POST['id_phieu'];
     $so_phieu = $_POST['so_phieu'];
@@ -74,7 +72,6 @@ else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="sua"){
     $nguoi_nhan = $_POST['nguoi_nhan'];
     $ly_do = $_POST['ly_do'];
 
-    // Cập nhật thông tin cơ bản của phiếu
     $conn->query("
         UPDATE phieu_xuat_kho
         SET so_phieu = '$so_phieu',
@@ -88,7 +85,6 @@ else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="sua"){
     exit();
 }
 
-/* ================= XÓA ================= */
 else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="xoa"){
     $id_phieu = $_POST['id_phieu'];
     $id_kho = $_POST['id_kho'];
@@ -105,7 +101,6 @@ else if(isset($_POST['hanh_dong']) && $_POST['hanh_dong']=="xoa"){
     exit();
 }
 
-/* ================= TÌM KIẾM ================= */
 $timkiem = "";
 if(isset($_POST['btn_timkiem'])){
     $timkiem = $_POST['timkiem'];
@@ -158,7 +153,6 @@ $vattu = $conn->query("SELECT * FROM vat_tu");
                 </thead>
                 <tbody>
                 <?php foreach($result as $item){ 
-                    // CHỖ NÀY QUAN TRỌNG: Format lại ngày để input datetime-local hiển thị được
                     $ngay_sua = date('Y-m-d\TH:i', strtotime($item['ngay_xuat']));
                 ?>
                     <tr>
@@ -251,14 +245,14 @@ function moboxthem(){
     document.getElementById("modalbox").style.display="flex";
     document.getElementById("tieude_modal").innerText="Thêm phiếu xuất";
     document.getElementById("hanh_dong").value="them";
-    document.getElementById("vung_chon_them").style.display="block"; // Hiện phần chọn vật tư
+    document.getElementById("vung_chon_them").style.display="block"; 
 }
 
 function moboxsua(id, sophieu, ngay, lydo, nguoinhan){
     document.getElementById("modalbox").style.display="flex";
     document.getElementById("tieude_modal").innerText="Sửa phiếu xuất";
     document.getElementById("hanh_dong").value="sua";
-    document.getElementById("vung_chon_them").style.display="none"; // Ẩn phần vật tư khi sửa để tránh lỗi kho
+    document.getElementById("vung_chon_them").style.display="none"; 
 
     document.getElementById("id_phieu").value = id;
     document.getElementById("so_phieu").value = sophieu;
