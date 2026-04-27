@@ -1,226 +1,236 @@
 <?php
+include_once('db_connect.php');
 session_start();
-include 'db_connect.php';
 
 // Kiểm tra đăng nhập
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("Location: login.php");
+    header('location:login.php');
     exit();
 }
 
-$id_nguoi_dung = isset($_SESSION['id_nguoi_dung']) ? $_SESSION['id_nguoi_dung'] : 0;
-$sql_user = "SELECT ho_ten FROM nguoi_dung WHERE id_nguoi_dung='$id_nguoi_dung'";
-$result_user = mysqli_query($conn, $sql_user);
-$ho_ten = 'Admin';
-if ($result_user && $row_user = mysqli_fetch_assoc($result_user)) {
-    $ho_ten = $row_user['ho_ten'];
-}
+$msg = "";
 
-// Xử lý thêm / sửa / xóa
-$msg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $hanh_dong = isset($_POST['hanh_dong']) ? $_POST['hanh_dong'] : '';
-    $ma_ncc = isset($_POST['ma_ncc']) ? trim($_POST['ma_ncc']) : '';
-    $ten_ncc = isset($_POST['ten_ncc']) ? trim($_POST['ten_ncc']) : '';
-    $dia_chi = isset($_POST['dia_chi']) ? trim($_POST['dia_chi']) : '';
-    $so_dien_thoai = isset($_POST['so_dien_thoai']) ? trim($_POST['so_dien_thoai']) : '';
-
-    if ($hanh_dong === 'them') {
-        if ($ma_ncc !== '' && $ten_ncc !== '') {
-            $ma_ncc_esc = mysqli_real_escape_string($conn, $ma_ncc);
-            $ten_ncc_esc = mysqli_real_escape_string($conn, $ten_ncc);
-            $dia_chi_esc = mysqli_real_escape_string($conn, $dia_chi);
-            $so_dien_thoai_esc = mysqli_real_escape_string($conn, $so_dien_thoai);
-            $sql_insert = "INSERT INTO nha_cung_cap (id_ncc, ten_ncc, dia_chi, dien_thoai) VALUES ('$ma_ncc_esc', '$ten_ncc_esc', '$dia_chi_esc', '$so_dien_thoai_esc')";
-            if (mysqli_query($conn, $sql_insert)) {
-                $msg = 'Đã thêm nhà cung cấp mới.';
-            } else {
-                $msg = 'Lỗi khi thêm nhà cung cấp: ' . mysqli_error($conn);
-            }
-        } else {
-            $msg = 'Mã và tên nhà cung cấp không được để trống.';
-        }
-    } elseif ($hanh_dong === 'sua') {
-        if ($ma_ncc !== '' && $ten_ncc !== '') {
-            $ma_ncc_esc = mysqli_real_escape_string($conn, $ma_ncc);
-            $ten_ncc_esc = mysqli_real_escape_string($conn, $ten_ncc);
-            $dia_chi_esc = mysqli_real_escape_string($conn, $dia_chi);
-            $so_dien_thoai_esc = mysqli_real_escape_string($conn, $so_dien_thoai);
-            $sql_update = "UPDATE nha_cung_cap SET ten_ncc='$ten_ncc_esc', dia_chi='$dia_chi_esc', dien_thoai='$so_dien_thoai_esc' WHERE id_ncc='$ma_ncc_esc'";
-            if (mysqli_query($conn, $sql_update)) {
-                $msg = 'Đã cập nhật thông tin nhà cung cấp.';
-            } else {
-                $msg = 'Lỗi khi cập nhật nhà cung cấp: ' . mysqli_error($conn);
-            }
-        } else {
-            $msg = 'Mã và tên nhà cung cấp không được để trống.';
-        }
-    }
-}
-
-if (isset($_GET['xoa']) && $_GET['xoa'] !== '') {
-    $xoa_id = mysqli_real_escape_string($conn, trim($_GET['xoa']));
-    $sql_delete = "DELETE FROM nha_cung_cap WHERE id_ncc='$xoa_id'";
-    if (mysqli_query($conn, $sql_delete)) {
-        $msg = 'Đã xóa nhà cung cấp.';
+// Xử lý Sửa
+if (isset($_POST['hanh_dong']) && $_POST['hanh_dong'] == 'sua') {
+    $id = $_POST['id_ncc'];
+    $ten = $_POST['ten_ncc'];
+    $dia_chi = $_POST['dia_chi'];
+    $dien_thoai = $_POST['dien_thoai'];
+    $sqlupdate = "UPDATE nha_cung_cap SET ten_ncc = '$ten', dia_chi = '$dia_chi', dien_thoai = '$dien_thoai' WHERE id_ncc = '$id'";
+    if ($conn->query($sqlupdate)) {
+        header('location:nhacungcap.php');
+        exit();
     } else {
-        $msg = 'Lỗi khi xóa nhà cung cấp: ' . mysqli_error($conn);
+        $msg = "Lỗi: " . $conn->error;
     }
 }
 
-$tukhoa = isset($_GET['tukhoa']) ? trim($_GET['tukhoa']) : '';
-$where = '';
-if ($tukhoa !== '') {
-    $tukhoa_esc = mysqli_real_escape_string($conn, $tukhoa);
-    $where = "WHERE id_ncc LIKE '%$tukhoa_esc%' OR ten_ncc LIKE '%$tukhoa_esc%' OR dia_chi LIKE '%$tukhoa_esc%'";
+// Xử lý Xóa
+else if (isset($_POST['hanh_dong']) && $_POST['hanh_dong'] == 'xoa') {
+    $id = $_POST['id_ncc'];
+    $sqlcheck = $conn->query("SELECT id_phieu_nhap FROM phieu_nhap_kho WHERE id_ncc = '$id'");
+    if ($sqlcheck->num_rows > 0) {
+        $msg = "Lỗi: Không cho phép xóa vì có liên quan tới dữ liệu bảng phiếu nhập kho";
+    } else {
+        $sqldelete = "DELETE FROM nha_cung_cap WHERE id_ncc = '$id'";
+        if ($conn->query($sqldelete)) {
+            header('location:nhacungcap.php');
+            exit();
+        } else {
+            $msg = "Lỗi hệ thống: " . $conn->error;
+        }
+    }
 }
 
-$sql_ncc = "SELECT * FROM nha_cung_cap $where ORDER BY ten_ncc";
-$result_ncc = @mysqli_query($conn, $sql_ncc);
+// Xử lý Thêm mới
+if (isset($_POST['submit'])) {
+    $id = $_POST['id_ncc'];
+    $ten = $_POST['ten_ncc'];
+    $dia_chi = $_POST['dia_chi'];
+    $dien_thoai = $_POST['dien_thoai'];
+    
+    $checkthem = $conn->query("SELECT * FROM nha_cung_cap WHERE id_ncc = '$id'");
+    if ($checkthem->num_rows > 0) {
+        $msg = "Lỗi: Mã nhà cung cấp này đã tồn tại!";
+    } else {
+        $insert = "INSERT INTO nha_cung_cap(id_ncc, ten_ncc, dia_chi, dien_thoai) VALUES('$id', '$ten', '$dia_chi', '$dien_thoai')";
+        if ($conn->query($insert)) {
+            header('location:nhacungcap.php');
+            exit();
+        } else {
+            $msg = "Lỗi hệ thống: " . $conn->error;
+        }
+    }
+}
+
+// Xử lý Tìm kiếm
+$timkiem = '';
+if (isset($_POST['btn_timkiem'])) {
+    $timkiem = $_POST['timkiem'];
+    $search = "SELECT * FROM nha_cung_cap WHERE ten_ncc LIKE '%$timkiem%' OR id_ncc = '$timkiem'";
+} else {
+    $search = "SELECT * FROM nha_cung_cap";
+}
+$result = $conn->query($search);
 ?>
+
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nhà cung cấp - Quản lý danh mục</title>
-    <link rel="stylesheet" href="css/style.css?v=<?php echo time(); ?>">
-    <style>
-        .phan-trang { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .khung-trang { background: #f7f7f7; padding: 20px; min-height: 80vh; }
-        table { width: 100%; border-collapse: collapse; background: #fff; }
-        table, th, td { border: 1px solid #ccc; }
-        th, td { padding: 10px; text-align: left; }
-        th { background: #eee; }
-        .nut { padding: 8px 14px; border: 1px solid #333; background: #fff; cursor: pointer; font-weight: bold; }
-        .nut-them { background: #28a745; color: #fff; border: none; }
-        .nut-sua { color: #0056b3; border-color: #0056b3; background: #fff; }
-        .nut-xoa { color: #c82333; border-color: #c82333; background: #fff; }
-        .lop-phu { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; padding: 20px; }
-        .hop-thoai { background: #fff; max-width: 520px; margin: 40px auto; padding: 20px; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
-        .hop-thoai label { display: block; font-weight: bold; margin-top: 14px; }
-        .hop-thoai input, .hop-thoai textarea { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .hop-thoai textarea { resize: vertical; min-height: 80px; }
-        .hop-thoai .hanh-dong { display: flex; gap: 10px; margin-top: 20px; }
-        .thong-bao { margin-bottom: 16px; padding: 12px; border-radius: 4px; background: #e8f5e9; color: #256029; border: 1px solid #c8e6c9; }
-        .khung-timkiem { display: flex; gap: 10px; margin-bottom: 20px; }
-        .khung-timkiem input { flex: 1; padding: 10px; border: 1px solid #333; border-radius: 4px; }
-        .chuc-nang-loc { margin-bottom: 20px; }
-    </style>
+    <title>Quản lý Nhà cung cấp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
-
-    <div class="wrapper">
+    
+    <div class="wrapper d-flex">
         <?php include 'includes/sidebar.php'; ?>
 
-        <div class="main-content">
-            <div style="padding: 12px 20px; color: #555;">Quản lý danh mục > Nhà cung cấp</div>
-
-            <div class="khung-trang">
-                <?php if ($msg !== ''): ?>
-                    <div class="thong-bao"><?php echo htmlspecialchars($msg); ?></div>
-                <?php endif; ?>
-
-                <div class="chuc-nang-loc">
-                    <form method="GET" class="khung-timkiem">
-                        <input type="text" name="tukhoa" placeholder="Tìm theo mã, tên hoặc địa chỉ..." value="<?php echo htmlspecialchars($tukhoa); ?>">
-                        <button type="submit" class="nut">Tìm kiếm</button>
-                        <button type="button" class="nut nut-them" onclick="moBoxThem()">+ Thêm nhà cung cấp</button>
-                    </form>
+        <div class="main-content flex-grow-1 p-4 bg-light">
+            <?php if ($msg !== ''): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Thông báo:</strong> <?php echo $msg; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
+            <?php endif; ?>
 
-                <table>
-                    <thead>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <form method="post" class="d-flex w-75 gap-2">
+                    <input type="text" name="timkiem" class="form-control" placeholder="Nhập tên hoặc id để tìm kiếm" value="<?php echo htmlspecialchars($timkiem); ?>">
+                    <button name="btn_timkiem" class="btn btn-outline-dark text-nowrap">Tìm kiếm</button>
+                </form>
+                <button class="btn btn-success text-nowrap" onclick="moboxthem()">+ Thêm nhà cung cấp mới</button>
+            </div>
+
+            <div class="bg-white p-3 border rounded">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <th style="width:100px;">Mã NCC</th>
+                            <th>Mã NCC</th>
                             <th>Tên nhà cung cấp</th>
                             <th>Địa chỉ</th>
                             <th>Số điện thoại</th>
-                            <th style="width:160px;">Hành động</th>
+                            <th style="width: 150px; text-align: center;">Hành động</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($result_ncc && mysqli_num_rows($result_ncc) > 0): ?>
-                            <?php while ($row = mysqli_fetch_assoc($result_ncc)): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($row['id_ncc']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['ten_ncc']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['dia_chi']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['dien_thoai']); ?></td>
-                                    <td>
-                                        <button class="nut nut-sua" onclick="moBoxSua('<?php echo htmlspecialchars($row['id_ncc']); ?>', '<?php echo htmlspecialchars(addslashes($row['ten_ncc'])); ?>', '<?php echo htmlspecialchars(addslashes($row['dia_chi'])); ?>', '<?php echo htmlspecialchars(addslashes($row['dien_thoai'])); ?>')">Sửa</button>
-                                        <button class="nut nut-xoa" onclick="xacNhanXoa('<?php echo htmlspecialchars($row['id_ncc']); ?>')">Xóa</button>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="5" style="text-align:center; padding: 18px;">Chưa có nhà cung cấp nào hoặc bảng chưa được tạo.</td>
-                            </tr>
-                        <?php endif; ?>
+                        <?php while($item = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td class="align-middle"><?php echo $item['id_ncc'] ?></td>
+                            <td class="align-middle"><?php echo $item['ten_ncc'] ?></td>
+                            <td class="align-middle"><?php echo $item['dia_chi'] ?></td>
+                            <td class="align-middle"><?php echo $item['dien_thoai'] ?></td>
+                            <td class="text-center align-middle">
+                                <button class="btn btn-outline-primary btn-sm me-1" onclick="moboxsua('<?php echo $item['id_ncc']; ?>', '<?php echo addslashes($item['ten_ncc']); ?>', '<?php echo addslashes($item['dia_chi']); ?>', '<?php echo $item['dien_thoai']; ?>')">Sửa</button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="xoa('<?php echo $item['id_ncc']; ?>')">Xóa</button>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <div id="modalBox" class="lop-phu">
-        <div class="hop-thoai">
-            <h2 id="modalTitle" style="margin:0 0 16px;">Thêm nhà cung cấp</h2>
-            <form method="POST" action="nhacungcap.php">
-                <input type="hidden" name="hanh_dong" id="hanh_dong" value="them">
-                <label>ID nhà cung cấp</label>
-                <input type="number" min="1" name="ma_ncc" id="ma_ncc" placeholder="1" required>
-                <label>Tên nhà cung cấp</label>
-                <input type="text" name="ten_ncc" id="ten_ncc" placeholder="Tên nhà cung cấp" required>
-                <label>Địa chỉ</label>
-                <textarea name="dia_chi" id="dia_chi" placeholder="Địa chỉ liên hệ"></textarea>
-                <label>Số điện thoại</label>
-                <input type="text" name="so_dien_thoai" id="so_dien_thoai" placeholder="0912xxxxxx">
+    <div id="modalbox" style="display:none; position: fixed; left: 0; right:0; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1050; align-items: center; justify-content: center;">
+        <div style="background: #fff; width: 450px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h4 id="modal_tieude" class="mb-4">Tiêu đề</h4>
+            
+            <form method="post" id="form_sua_xoa">
+                <input type="hidden" name="hanh_dong" id="hanh_dong">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Mã nhà cung cấp</label>
+                    <input type="text" name="id_ncc" id="id_ncc" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên nhà cung cấp</label>
+                    <input type="text" name="ten_ncc" id="ten_ncc" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Địa chỉ</label>
+                    <input type="text" name="dia_chi" id="dia_chi" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Điện thoại</label>
+                    <input type="text" name="dien_thoai" id="dien_thoai" class="form-control" required>
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary w-50">LƯU</button>
+                    <button type="button" class="btn btn-secondary w-50" onclick="dongbox()">HỦY</button>
+                </div>
+            </form>
 
-                <div class="hanh-dong">
-                    <button type="submit" class="nut nut-them" style="flex:1;">Lưu lại</button>
-                    <button type="button" class="nut" style="flex:1;" onclick="dongBox()">Hủy</button>
+            <form method="post" id="form_them" style="display:none">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Mã nhà cung cấp</label>
+                    <input type="text" name="id_ncc" id="id_ncc_them" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên nhà cung cấp</label>
+                    <input type="text" name="ten_ncc" id="ten_ncc_them" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Địa chỉ</label>
+                    <input type="text" name="dia_chi" id="dia_chi_them" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Điện thoại</label>
+                    <input type="text" name="dien_thoai" id="dien_thoai_them" class="form-control" required>
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                    <input type="submit" name="submit" value="Thêm mới" class="btn btn-success w-50">
+                    <button type="button" class="btn btn-secondary w-50" onclick="dongbox()">HỦY</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function moBoxThem() {
-            document.getElementById('modalTitle').innerText = 'Thêm nhà cung cấp';
-            document.getElementById('hanh_dong').value = 'them';
-            document.getElementById('ma_ncc').readOnly = false;
-            document.getElementById('ma_ncc').value = '';
-            document.getElementById('ten_ncc').value = '';
-            document.getElementById('dia_chi').value = '';
-            document.getElementById('so_dien_thoai').value = '';
-            document.getElementById('modalBox').style.display = 'block';
-        }
-
-        function moBoxSua(ma, ten, diachi, sodt) {
-            document.getElementById('modalTitle').innerText = 'Sửa thông tin nhà cung cấp';
+        function moboxsua(id, ten, diachi, dienthoai) {
+            document.getElementById('modal_tieude').innerText = 'Sửa nhà cung cấp';
+            document.getElementById('form_sua_xoa').style.display = 'block';
+            document.getElementById('form_them').style.display = 'none';
+            
             document.getElementById('hanh_dong').value = 'sua';
-            document.getElementById('ma_ncc').value = ma;
-            document.getElementById('ma_ncc').readOnly = true;
+            document.getElementById('id_ncc').value = id;
             document.getElementById('ten_ncc').value = ten;
             document.getElementById('dia_chi').value = diachi;
-            document.getElementById('so_dien_thoai').value = sodt;
-            document.getElementById('modalBox').style.display = 'block';
+            document.getElementById('dien_thoai').value = dienthoai;
+            
+            document.getElementById('modalbox').style.display = 'flex';
         }
 
-        function dongBox() {
-            document.getElementById('modalBox').style.display = 'none';
+        function moboxthem() {
+            document.getElementById('modal_tieude').innerText = 'Thêm nhà cung cấp mới';
+            document.getElementById('form_sua_xoa').style.display = 'none';
+            document.getElementById('form_them').style.display = 'block';
+            
+            // Reset fields
+            document.getElementById('id_ncc_them').value = '';
+            document.getElementById('ten_ncc_them').value = '';
+            document.getElementById('dia_chi_them').value = '';
+            document.getElementById('dien_thoai_them').value = '';
+            
+            document.getElementById('modalbox').style.display = 'flex';
         }
 
-        function xacNhanXoa(ma) {
-            if (confirm('Bạn có chắc chắn muốn xóa nhà cung cấp ' + ma + ' không?')) {
-                window.location.href = 'nhacungcap.php?xoa=' + encodeURIComponent(ma);
+        function dongbox() {
+            document.getElementById('modalbox').style.display = 'none';
+        }
+
+        function xoa(id) {
+            if (confirm("Bạn có chắc chắn muốn xóa nhà cung cấp này không?")) {
+                document.getElementById('form_sua_xoa').style.display = 'block';
+                document.getElementById('form_them').style.display = 'none';
+                document.getElementById('hanh_dong').value = 'xoa';
+                document.getElementById('id_ncc').value = id;
+                document.getElementById('form_sua_xoa').submit();
             }
         }
     </script>
-
-    <?php include 'includes/footer.php'; ?>
 </body>
 </html>
